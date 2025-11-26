@@ -2,7 +2,6 @@ from mesa import Model
 from mesa.discrete_space import OrthogonalMooreGrid
 from .agent import *
 import json
-import os
 
 
 class CityModel(Model):
@@ -14,19 +13,18 @@ class CityModel(Model):
         seed: Random seed for the model
     """
 
-    def __init__(self, N, seed=4):
+    def __init__(self, N, seed=42):
 
         super().__init__(seed=seed)
 
         # Load the map dictionary. The dictionary maps the characters in the map file to the corresponding agent.
-        base_path = os.path.dirname(__file__)
-        dataDictionary = json.load(open(os.path.join(base_path, "city_files/mapDictionary.json")))
+        dataDictionary = json.load(open("city_files/mapDictionary.json"))
 
         self.num_agents = N
         self.traffic_lights = []
 
         # Load the map file. The map file is a text file where each character represents an agent.
-        with open(os.path.join(base_path, "city_files/2023_base.txt")) as baseFile: #aqui cambiamos el mapa
+        with open("city_files/2022_base.txt") as baseFile:
             lines = baseFile.readlines()
             self.width = len(lines[0])
             self.height = len(lines)
@@ -48,7 +46,8 @@ class CityModel(Model):
                         agent = Traffic_Light(
                             self,
                             cell,
-                            0 if col == "S" else 1,
+                            False if col == "S" else True,
+                            int(dataDictionary[col]),
                         )
                         self.traffic_lights.append(agent)
 
@@ -57,19 +56,6 @@ class CityModel(Model):
 
                     elif col == "D":
                         agent = Destination(self, cell)
-
-        # movemos a los agentes a las esquinas por el momento despues cada 15 o 20 steps aprox los estaremos mover a su destino
-        esquinas = [
-            self.grid[(0, 0)], # esquina inferior izquierda                          
-            self.grid[(self.width - 2, 0)], # esquina inferior derecha             
-            self.grid[(0, self.height -1)], # esquina superior izquierda            
-            self.grid[(self.width - 2, self.height - 1)] # esquina superior derecha
-        ]
-        
-        
-        for i in range(self.num_agents):
-            cell = esquinas[i % 4]  
-            agent = Car(self, cell)
 
         self.running = True
 
