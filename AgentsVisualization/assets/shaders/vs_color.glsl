@@ -1,12 +1,43 @@
 #version 300 es
 in vec4 a_position;
 in vec4 a_color;
+in vec3 a_normal;
+
+const int MAX_LIGHTS = 16;
+
+// Scene uniforms
+uniform vec3 u_lightWorldPosition[MAX_LIGHTS];
+uniform vec3 u_viewWorldPosition;
+
+// Model uniforms
+uniform mat4 u_world;
+uniform mat4 u_worldInverseTransform;
+uniform mat4 u_worldViewProjection;
+
+// Transformed normals
+out vec3 v_normal;
+out vec3 v_surfaceToLight[MAX_LIGHTS];
+out vec3 v_surfaceToView;
 
 uniform mat4 u_transforms;
 
 out vec4 v_color;
 
 void main() {
-    gl_Position = u_transforms * a_position;
+    gl_Position = u_worldViewProjection * a_position;
     v_color = a_color;
+
+    // Transform the normal vector along with the object
+    v_normal = mat3(u_worldInverseTransform) * a_normal;
+
+    // Get world position of the surface
+    vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+
+    // Direction from the surface to the light
+    for (int i = 0; i < MAX_LIGHTS; ++i) {
+        v_surfaceToLight[i] = u_lightWorldPosition[i] - surfaceWorldPosition;
+    }
+
+    // Direction from the surface to the view
+    v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
 }

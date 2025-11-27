@@ -14,18 +14,28 @@ import * as twgl from 'twgl-base.js';
 import GUI from 'lil-gui';
 import { M4 } from '../libs/3d-lib';
 import { Scene3D } from '../libs/scene3d';
+import { Light3D } from '../libs/light3d';
 import { Object3D } from '../libs/object3d';
 import { Camera3D } from '../libs/camera3d';
 
 // Functions and arrays for the communication with the API
 import {
   agents, obstacles, initAgentsModel,
-  update, getAgents, getObstacles, getRoads, roads
+  update, getAgents, getObstacles, getRoads, roads,
+  getTrafficLights,
+  getDestination,
+  destination, trafficLight
 } from '../libs/api_connection.js';
 
 // Define the shader code, using GLSL 3.00
 import vsGLSL from '../assets/shaders/vs_color.glsl?raw';
 import fsGLSL from '../assets/shaders/fs_color.glsl?raw';
+//import buidling from '../assets/models/cilindro_8_6_1_0.8.obj?raw';
+import destinationBuilding from '../assets/models/edificio.obj?raw';
+import semaforo from '../assets/models/semaforo.obj?raw'
+import carros from '../assets/models/carro.obj?raw'
+
+//import semaforo from '../assets/models/light_traffic_signal.obj?raw';
 
 const scene = new Scene3D();
 
@@ -49,7 +59,6 @@ const duration = 1000; // ms
 let elapsed = 0;
 let then = 0;
 
-
 // Main function is async to be able to make the requests
 async function main() {
   // Setup the canvas area
@@ -67,6 +76,8 @@ async function main() {
   // Get the agents and obstacles
   await getAgents();
   await getObstacles();
+  await getTrafficLights();
+  await getDestination();
   await getRoads();
 
 
@@ -100,47 +111,118 @@ function setupScene() {
 }
 
 function setupObjects(scene, gl, programInfo) {
+
+  let light = new Light3D(0, [3, 3, 5],              // Position
+                               [0.3, 0.3, 0.3, 1.0],   // Ambient
+                               [1.0, 1.0, 1.0, 1.0],   // Diffuse
+                               [1.0, 1.0, 1.0, 1.0]);  // Specular
+  scene.addLight(light);
+
   // Create VAOs for the different shapes
   const baseCube = new Object3D(-1);
   baseCube.prepareVAO(gl, programInfo);
 
-  /*
-  // A scaled cube to use as the ground
-  const ground = new Object3D(-3, [14, 0, 14]);
-  ground.arrays = baseCube.arrays;
-  ground.bufferInfo = baseCube.bufferInfo;
-  ground.vao = baseCube.vao;
-  ground.scale = {x: 50, y: 0.1, z: 50};
-  ground.color = [0.6, 0.6, 0.6, 1];
-  scene.addObject(ground);
-  */
+  // Modelo para semaforos
+  const baseSemaforos = new Object3D(-2);
+  baseSemaforos.prepareVAO(gl, programInfo, semaforo);
+
+  const baseDestination = new Object3D(-3);
+  baseDestination.prepareVAO(gl, programInfo, destinationBuilding);
+
+  const baseCar = new Object3D(-4);
+  baseCar.prepareVAO(gl, programInfo, carros);
+
+  
+  // //A scaled cube to use as the ground
+  // const ground = new Object3D(-3, [14, 0, 14]);
+  // ground.arrays = baseCube.arrays;
+  // ground.bufferInfo = baseCube.bufferInfo;
+  // ground.vao = baseCube.vao;
+  // ground.scale = {x: 50, y: 0.1, z: 50};
+  // ground.color = [0.6, 0.6, 0.6, 1];
+  // scene.addObject(ground);
+  
 
   // Copy the properties of the base objects
   for (const agent of agents) {
-    agent.arrays = baseCube.arrays;
-    agent.bufferInfo = baseCube.bufferInfo;
-    agent.vao = baseCube.vao;
-    agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
+    agent.arrays = baseCar.arrays;
+    agent.bufferInfo = baseCar.bufferInfo;
+    agent.vao = baseCar.vao;
+    agent.scale = { x: 0.2, y: 0.2, z: 0.2 };
     scene.addObject(agent);
   }
 
   // Copy the properties of the base objects
-  for (const agent of obstacles) {
-    agent.arrays = baseCube.arrays;
-    agent.bufferInfo = baseCube.bufferInfo;
-    agent.vao = baseCube.vao;
-    agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
-    agent.color = [0.5, 0.5, 0.5, 1.0];
-    scene.addObject(agent);
+  for (const o of obstacles) {
+    o.arrays = baseCube.arrays;
+    o.bufferInfo = baseCube.bufferInfo;
+    o.vao = baseCube.vao;
+    o.scale = { x: 0.5, y: 0.1, z: 0.5 };
+    o.color = [0, 1, 0, 1.0];
+    scene.addObject(o);
   }
+
+  for (const d of destination) {
+    d.arrays = baseDestination.arrays;
+    d.bufferInfo = baseDestination.bufferInfo;
+    d.vao = baseDestination.vao;
+    d.scale = { x: 0.017, y: 0.03, z: 0.017 };
+    //d.color = [0.647, 0.165, 0.165, 1];
+    scene.addObject(d);
+  }
+
+  // for (const r of roads) {
+  //   r.arrays = baseCube.arrays;
+  //   r.bufferInfo = baseCube.bufferInfo;
+  //   r.vao = baseCube.vao;
+  //   r.scale = {x: 50, y: 0.1, z: 50};
+  //   r.color = [0.6, 0.6, 0.6, 1];
+  //   scene.addObject(r);
+  // }
 
   for (const agent of roads) {
     agent.arrays = baseCube.arrays;
     agent.bufferInfo = baseCube.bufferInfo;
     agent.vao = baseCube.vao;
-    agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
-    agent.color = [1, 1, 1, 1];
+    agent.scale = { x: 0.5, y: 0.1, z: 0.5 };
+    agent.color = [0.6, 0.6, 0.6, 1];
     scene.addObject(agent);
+  }
+
+  for (const tl of trafficLight) {
+    tl.arrays = baseSemaforos.arrays;
+    tl.bufferInfo = baseSemaforos.bufferInfo;
+    tl.vao = baseSemaforos.vao;
+    tl.scale = { x: 0.3, y: 0.3, z: 0.3 };
+    if (tl.state === 0) tl.color = [1, 0, 0, 1];
+    else if (tl.state === 2) tl.color = [1, 1, 0, 1];
+    else if (tl.state === 1) tl.color = [0, 1, 0, 1];
+    else tl.color = [1, 1, 1, 1];
+    scene.addObject(tl);
+
+    let baseColor;
+    if (tl.state === 0)       baseColor = [1, 0, 0, 1];     // rojo
+    else if (tl.state === 1)  baseColor = [0, 1, 0, 1];     // verde
+    else if (tl.state === 2)  baseColor = [1, 1, 0, 1];     // amarillo
+    else                      baseColor = [1, 1, 1, 1];     // blanco
+
+    // Crear la luz en la posición del semáforo
+    const ambient  = [0.05 * baseColor[0], 0.05 * baseColor[1], 0.05 * baseColor[2], 1.0];
+    const diffuse  = [0.15 * baseColor[0], 0.15 * baseColor[1], 0.15 * baseColor[2], 1.0];
+    const specular = [0.05 * baseColor[0], 0.5 * baseColor[1], 0.5 * baseColor[2],       1.0];
+
+    const lightcolor = new Light3D(
+      tl.id ?? 0,                // algún id si quieres
+      [tl.x, tl.y + 1, tl.z],    // un poco arriba del poste
+      ambient,
+      diffuse,
+      specular
+    );
+
+    // Guardamos referencia a la luz dentro del semáforo
+    
+    tl.light = lightcolor;
+    scene.addLight(lightcolor);
   }
 
 }
@@ -181,11 +263,21 @@ function drawObject(gl, programInfo, object, viewProjectionMatrix, fract) {
   // Apply the projection to the final matrix for the
   // World-View-Projection
   const wvpMat = M4.multiply(viewProjectionMatrix, transforms);
+  const normalMat = M4.transpose(M4.inverse(object.matrix));
 
   // Model uniforms
   let objectUniforms = {
     u_transforms: wvpMat,
-    ucolor: object.color
+    u_color: object.color,
+
+    u_world: object.matrix,
+    u_worldInverseTransform: normalMat,
+    u_worldViewProjection: wvpMat,
+
+    u_ambientColor: object.color,
+    u_diffuseColor: object.color,
+    u_specularColor: object.color,
+    u_shininess: object.shininess
   }
   twgl.setUniforms(programInfo, objectUniforms);
 
@@ -203,7 +295,7 @@ async function drawScene() {
   then = now;
 
   // Clear the canvas
-  gl.clearColor(0, 0, 0, 1);
+  gl.clearColor(0, 0.4, 0.8, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // tell webgl to cull faces
@@ -216,6 +308,26 @@ async function drawScene() {
 
   // Draw the objects
   gl.useProgram(colorProgramInfo.program);
+
+  const MAX_LIGHTS = 16;
+  const activeLights = scene.lights.slice(0, MAX_LIGHTS);
+
+  // Flatten de los datos de luces
+  const lightPositions = activeLights.map(l => l.posArray).flat();
+  const ambientLights  = activeLights.map(l => l.ambient).flat();
+  const diffuseLights  = activeLights.map(l => l.diffuse).flat();
+  const specularLights = activeLights.map(l => l.specular).flat();
+
+  let globalUniforms = {
+    u_viewWorldPosition: scene.camera.posArray,
+    u_lightWorldPosition: lightPositions,
+    u_ambientLight: ambientLights,
+    u_diffuseLight: diffuseLights,
+    u_specularLight: specularLights,
+    u_numLights: activeLights.length
+  };
+    twgl.setUniforms(colorProgramInfo, globalUniforms);
+
   for (let object of scene.objects) {
     drawObject(gl, colorProgramInfo, object, viewProjectionMatrix, fract);
   }

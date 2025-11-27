@@ -17,6 +17,8 @@ const agent_server_uri = "http://localhost:8585/";
 const agents = [];
 const obstacles = [];
 const roads = [];
+const trafficLight = [];
+const destination = []
 
 // Define the data object
 const initData = {
@@ -90,7 +92,7 @@ async function getAgents() {
                     if(current_agent != undefined){
                         // Update the agent's position
                         current_agent.oldPosArray = current_agent.posArray;
-                        current_agent.position = {x: agent.x, y: agent.y, z: agent.z};
+                        current_agent.position = {x: agent.x, y: agent.y - 1, z: agent.z};
                     }
 
                     //console.log("OLD: ", current_agent.oldPosArray,
@@ -120,8 +122,72 @@ async function getObstacles() {
 
             // Create new obstacles and add them to the obstacles array
             for (const obstacle of result.positions) {
-                const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y, obstacle.z]);
+                const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y -1, obstacle.z]);
                 obstacles.push(newObstacle);
+            }
+            // Log the obstacles array
+            //console.log("Obstacles:", obstacles);
+        }
+
+    } catch (error) {
+        // Log any errors that occur during the request
+        console.log(error);
+    }
+}
+
+async function getTrafficLights() {
+    try {
+        // Send a GET request to the agent server to retrieve the obstacle positions
+        let response = await fetch(agent_server_uri + "getTrafficLights");
+
+        // Check if the response was successful
+        if (response.ok) {
+            // Parse the response as JSON
+            let result = await response.json();
+
+            // First time: create the lights
+            if (trafficLight.length === 0) {
+                for (const tl of result.positions) {
+                    const newLight = new Object3D(tl.id, [tl.x, tl.y, tl.z]);
+                    newLight.state = tl.state;
+                    trafficLight.push(newLight);
+                    const newRoad = new Object3D(tl.id, [tl.x, tl.y - 1, tl.z]);
+                    roads.push(newRoad);
+                }
+            } 
+            else {
+                // Update existing lights
+                for (const tl of result.positions) {
+                    const existing = trafficLight.find(obj => obj.id == tl.id);
+
+                    if (existing) {
+                        existing.position = { x: tl.x, y: tl.y, z: tl.z };
+                        existing.state = tl.state;
+                    }
+                }
+            }
+        }
+
+    } catch (error) {
+        // Log any errors that occur during the request
+        console.log(error);
+    }
+}
+
+async function getDestination() {
+    try {
+        // Send a GET request to the agent server to retrieve the obstacle positions
+        let response = await fetch(agent_server_uri + "getDestination");
+
+        // Check if the response was successful
+        if (response.ok) {
+            // Parse the response as JSON
+            let result = await response.json();
+
+            // Create new obstacles and add them to the obstacles array
+            for (const Dest of result.positions) {
+                const newDestination = new Object3D(Dest.id, [Dest.x, Dest.y -1, Dest.z]);
+                destination.push(newDestination);
             }
             // Log the obstacles array
             //console.log("Obstacles:", obstacles);
@@ -170,6 +236,38 @@ async function update() {
         if (response.ok) {
             // Retrieve the updated agent positions
             await getAgents();
+            await getTrafficLights();
+            for (const tl of trafficLight){
+                if (!tl.light) continue;   // por si aún no se creó la luz
+
+                let baseColor;
+                if (tl.state === 0)       baseColor = [1, 0, 0, 1];    // rojo
+                else if (tl.state === 1)  baseColor = [0, 1, 0, 1];    // verde
+                else if (tl.state === 2)  baseColor = [1, 1, 0, 1];    // amarillo
+                else                      baseColor = [1, 1, 1, 1];    // blanco
+
+                // Escalamos el color para ambient/diffuse/specular
+                tl.light.ambient  = [
+                    0.2 * baseColor[0],
+                    0.2 * baseColor[1],
+                    0.2 * baseColor[2],
+                    1.0
+                ];
+
+                tl.light.diffuse  = [
+                    0.8 * baseColor[0],
+                    0.8 * baseColor[1],
+                    0.8 * baseColor[2],
+                    1.0
+                ];
+
+                tl.light.specular = [
+                    baseColor[0],
+                    baseColor[1],
+                    baseColor[2],
+                    1.0
+                ];
+            }
             // Log a message indicating that the agents have been updated
             //console.log("Updated agents");
         }
@@ -180,4 +278,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, roads, initAgentsModel, update, getAgents, getObstacles, getRoads };
+export { agents, obstacles, trafficLight, destination, roads, initAgentsModel, update, getAgents, getObstacles, getTrafficLights, getDestination, getRoads };
