@@ -1,5 +1,5 @@
-from randomAgents.agent import *
-from randomAgents.model import CityModel
+from traffic_base.agent import *
+from traffic_base.model import CityModel
 
 from mesa.visualization import Slider, SolaraViz, make_space_component
 from mesa.visualization.components import AgentPortrayalStyle
@@ -18,23 +18,14 @@ def agent_portrayal(agent):
         portrayal.color = "#aaa"
 
     if isinstance(agent, Destination):
-        portrayal.color = "lightgreen" # color para el destino
+        portrayal.color = "lightgreen"
 
     if isinstance(agent, Traffic_Light):
-        if agent.state == 0:
-            portrayal.color = "red" # color  rojo para el semaforo
-        elif agent.state == 1:
-            portrayal.color = "green" # color verde para el semaforo
-        elif agent.state == 2:
-            portrayal.color = "yellow" # color amarillo para el semaforo
+        portrayal.color = "red" if not agent.state else "green"
 
     if isinstance(agent, Obstacle):
         portrayal.color = "#555"
-    
-    # Añadir visualización para los carros
-    if isinstance(agent, Car):
-        portrayal.color = "blue"
-        portrayal.size = 20  
+
     return portrayal
 
 
