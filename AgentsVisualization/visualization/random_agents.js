@@ -33,7 +33,8 @@ import fsGLSL from '../assets/shaders/fs_color.glsl?raw';
 //import buidling from '../assets/models/cilindro_8_6_1_0.8.obj?raw';
 import destinationBuilding from '../assets/models/edificio.obj?raw';
 import semaforo from '../assets/models/semaforo.obj?raw'
-import carros from '../assets/models/carro.obj?raw'
+import carros from '../assets/models/CarNew2.obj?raw'
+import arboles from '../assets/models/TreeNew.obj?raw'
 
 //import semaforo from '../assets/models/light_traffic_signal.obj?raw';
 
@@ -132,6 +133,9 @@ function setupObjects(scene, gl, programInfo) {
   const baseCar = new Object3D(-4);
   baseCar.prepareVAO(gl, programInfo, carros);
 
+  const basetree = new Object3D(-5);
+  basetree.prepareVAO(gl, programInfo, arboles);
+
   
   // //A scaled cube to use as the ground
   // const ground = new Object3D(-3, [14, 0, 14]);
@@ -148,16 +152,16 @@ function setupObjects(scene, gl, programInfo) {
     agent.arrays = baseCar.arrays;
     agent.bufferInfo = baseCar.bufferInfo;
     agent.vao = baseCar.vao;
-    agent.scale = { x: 0.2, y: 0.2, z: 0.2 };
+    agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
     scene.addObject(agent);
   }
 
   // Copy the properties of the base objects
   for (const o of obstacles) {
-    o.arrays = baseCube.arrays;
-    o.bufferInfo = baseCube.bufferInfo;
-    o.vao = baseCube.vao;
-    o.scale = { x: 0.5, y: 0.1, z: 0.5 };
+    o.arrays = basetree.arrays;
+    o.bufferInfo = basetree.bufferInfo;
+    o.vao = basetree.vao;
+    o.scale = { x: 0.55, y: 1.0, z: 0.55 };
     o.color = [0, 1, 0, 1.0];
     scene.addObject(o);
   }
@@ -207,12 +211,12 @@ function setupObjects(scene, gl, programInfo) {
     else                      baseColor = [1, 1, 1, 1];     // blanco
 
     // Crear la luz en la posición del semáforo
-    const ambient  = [0.05 * baseColor[0], 0.05 * baseColor[1], 0.05 * baseColor[2], 1.0];
-    const diffuse  = [0.15 * baseColor[0], 0.15 * baseColor[1], 0.15 * baseColor[2], 1.0];
-    const specular = [0.05 * baseColor[0], 0.5 * baseColor[1], 0.5 * baseColor[2],       1.0];
+    const ambient  = [baseColor[0], baseColor[1], baseColor[2], 1.0];
+    const diffuse  = [baseColor[0], baseColor[1], baseColor[2], 1.0];
+    const specular = [baseColor[0], baseColor[1], baseColor[2], 1.0];
 
     const lightcolor = new Light3D(
-      tl.id ?? 0,                // algún id si quieres
+      tl.id ?? 0,             
       [tl.x, tl.y + 1, tl.z],    // un poco arriba del poste
       ambient,
       diffuse,
@@ -220,7 +224,6 @@ function setupObjects(scene, gl, programInfo) {
     );
 
     // Guardamos referencia a la luz dentro del semáforo
-    
     tl.light = lightcolor;
     scene.addLight(lightcolor);
   }
@@ -242,6 +245,16 @@ function drawObject(gl, programInfo, object, viewProjectionMatrix, fract) {
   object.rotRad.y = object.rotDeg.y * Math.PI / 180;
   object.rotRad.z = object.rotDeg.z * Math.PI / 180;
   */
+
+  if (object.isStopped && !object.hasRotated) {
+    object.rotRad.y += Math.PI / 2;   // rotar 90°
+    object.hasRotated = true;         // para no girar infinitamente
+  }
+
+  // Reiniciar cuando se mueve otra vez
+  if (!object.isStopped) {
+      object.hasRotated = false;
+  }
 
   // Create the individual transform matrices
   const scaMat = M4.scale(v3_sca);
@@ -324,7 +337,6 @@ async function drawScene() {
     u_ambientLight: ambientLights,
     u_diffuseLight: diffuseLights,
     u_specularLight: specularLights,
-    u_numLights: activeLights.length
   };
     twgl.setUniforms(colorProgramInfo, globalUniforms);
 
@@ -362,6 +374,11 @@ function setupViewProjection(gl) {
 
 // Setup a ui.
 function setupUI() {
+
+  // const gui = new GUI();
+  // const lightFolder = gui.addFolder('Lights:');
+  // lightFolder.add(settings, 'maxDistance', 0, 200);
+
 
   // const gui = new GUI();
 

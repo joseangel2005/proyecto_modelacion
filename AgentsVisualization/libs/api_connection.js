@@ -92,7 +92,12 @@ async function getAgents() {
                     if(current_agent != undefined){
                         // Update the agent's position
                         current_agent.oldPosArray = current_agent.posArray;
-                        current_agent.position = {x: agent.x, y: agent.y - 1, z: agent.z};
+                        current_agent.position = {x: agent.x, y: agent.y - 0.5, z: agent.z};
+
+                        const dx = current_agent.posArray[0] - current_agent.oldPosArray[0];
+                        const dz = current_agent.posArray[2] - current_agent.oldPosArray[2];
+
+                        current_agent.isStopped = (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001);
                     }
 
                     //console.log("OLD: ", current_agent.oldPosArray,
@@ -122,7 +127,7 @@ async function getObstacles() {
 
             // Create new obstacles and add them to the obstacles array
             for (const obstacle of result.positions) {
-                const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y -1, obstacle.z]);
+                const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y-1.6, obstacle.z]);
                 obstacles.push(newObstacle);
             }
             // Log the obstacles array
@@ -246,18 +251,20 @@ async function update() {
                 else if (tl.state === 2)  baseColor = [1, 1, 0, 1];    // amarillo
                 else                      baseColor = [1, 1, 1, 1];    // blanco
 
+                tl.color = baseColor;
+
                 // Escalamos el color para ambient/diffuse/specular
                 tl.light.ambient  = [
-                    0.2 * baseColor[0],
-                    0.2 * baseColor[1],
-                    0.2 * baseColor[2],
+                    0.1 * baseColor[0],
+                    0.1 * baseColor[1],
+                    0.1 * baseColor[2],
                     1.0
                 ];
 
                 tl.light.diffuse  = [
-                    0.8 * baseColor[0],
-                    0.8 * baseColor[1],
-                    0.8 * baseColor[2],
+                    0.6 * baseColor[0],
+                    0.6 * baseColor[1],
+                    0.6 * baseColor[2],
                     1.0
                 ];
 
