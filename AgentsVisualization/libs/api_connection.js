@@ -75,9 +75,13 @@ async function getAgents() {
             if (agents.length == 0) {
                 // Create new agents and add them to the agents array
                 for (const agent of result.positions) {
+
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
                     // Store the initial position
-                    newAgent['oldPosArray'] = newAgent.posArray;
+                    newAgent['oldPosArray'] = [...newAgent.posArray];
+                    newAgent.prevPos     = [...newAgent.posArray];
+                    newAgent.nextPos     = [...newAgent.posArray];
+                    newAgent.newPos = [...newAgent.posArray];
                     agents.push(newAgent);
                 }
                 // Log the agents array
@@ -91,13 +95,14 @@ async function getAgents() {
                     // Check if the agent exists in the agents array
                     if(current_agent != undefined){
                         // Update the agent's position
-                        current_agent.oldPosArray = current_agent.posArray;
-                        current_agent.position = {x: agent.x, y: agent.y - 0.5, z: agent.z};
+                        current_agent.prevPos = current_agent.nextPos;
+                        
+                        //current_agent.oldPosArray = current_agent.nextPos;
+                        current_agent.position = {x: agent.x, y: agent.y - 0.8, z: agent.z};
 
-                        const dx = current_agent.posArray[0] - current_agent.oldPosArray[0];
-                        const dz = current_agent.posArray[2] - current_agent.oldPosArray[2];
+                        current_agent.nextPos = current_agent.newPos;
 
-                        current_agent.isStopped = (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001);
+                        current_agent.newPos = [...current_agent.posArray];
                     }
 
                     //console.log("OLD: ", current_agent.oldPosArray,
@@ -241,10 +246,11 @@ async function update() {
         if (response.ok) {
             // Retrieve the updated agent positions
             await getAgents();
+            // for (){
+
+            // }
             await getTrafficLights();
             for (const tl of trafficLight){
-                if (!tl.light) continue;   // por si aún no se creó la luz
-
                 let baseColor;
                 if (tl.state === 0)       baseColor = [1, 0, 0, 1];    // rojo
                 else if (tl.state === 1)  baseColor = [0, 1, 0, 1];    // verde
@@ -252,28 +258,6 @@ async function update() {
                 else                      baseColor = [1, 1, 1, 1];    // blanco
 
                 tl.color = baseColor;
-
-                // Escalamos el color para ambient/diffuse/specular
-                tl.light.ambient  = [
-                    0.1 * baseColor[0],
-                    0.1 * baseColor[1],
-                    0.1 * baseColor[2],
-                    1.0
-                ];
-
-                tl.light.diffuse  = [
-                    0.6 * baseColor[0],
-                    0.6 * baseColor[1],
-                    0.6 * baseColor[2],
-                    1.0
-                ];
-
-                tl.light.specular = [
-                    baseColor[0],
-                    baseColor[1],
-                    baseColor[2],
-                    1.0
-                ];
             }
             // Log a message indicating that the agents have been updated
             //console.log("Updated agents");

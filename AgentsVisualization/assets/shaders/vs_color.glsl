@@ -1,43 +1,32 @@
 #version 300 es
+
+// Atributos de vértice
 in vec4 a_position;
-in vec4 a_color;
 in vec3 a_normal;
+in vec2 a_texcoord;
 
-const int MAX_LIGHTS = 16;
-
-// Scene uniforms
-uniform vec3 u_lightWorldPosition[MAX_LIGHTS];
-uniform vec3 u_viewWorldPosition;
-
-// Model uniforms
+// Matrices
 uniform mat4 u_world;
 uniform mat4 u_worldInverseTransform;
 uniform mat4 u_worldViewProjection;
 
-// Transformed normals
+// Varyings hacia el fragment shader
+out vec3 v_worldPosition;
 out vec3 v_normal;
-out vec3 v_surfaceToLight[MAX_LIGHTS];
-out vec3 v_surfaceToView;
-
-uniform mat4 u_transforms;
-
-out vec4 v_color;
+out vec2 v_texcoord;
 
 void main() {
-    gl_Position = u_worldViewProjection * a_position;
-    v_color = a_color;
+    // Posición del vértice en espacio mundial
+    vec4 worldPosition = u_world * a_position;
+    v_worldPosition = worldPosition.xyz;
 
-    // Transform the normal vector along with the object
+    // Normal transformada a espacio mundial
+    // (u_worldInverseTransform es la inversa transpuesta del mundo)
     v_normal = mat3(u_worldInverseTransform) * a_normal;
 
-    // Get world position of the surface
-    vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+    // Coordenadas de textura pasan directo
+    v_texcoord = a_texcoord;
 
-    // Direction from the surface to the light
-    for (int i = 0; i < MAX_LIGHTS; ++i) {
-        v_surfaceToLight[i] = u_lightWorldPosition[i] - surfaceWorldPosition;
-    }
-
-    // Direction from the surface to the view
-    v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
+    // Posición final en clip space
+    gl_Position = u_worldViewProjection * a_position;
 }
