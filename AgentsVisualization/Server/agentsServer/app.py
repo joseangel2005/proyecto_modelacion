@@ -15,10 +15,10 @@ def agent_portrayal(agent):
     )
 
     if isinstance(agent, Road):
-        portrayal.color = "#aaa"
+        portrayal.color = "#aaa" #color gris para la carretera
 
     if isinstance(agent, Destination):
-        portrayal.color = "lightgreen" # color para el destino
+        portrayal.color = "lightgreen" # color vverde ligero para el destino
 
     if isinstance(agent, Traffic_Light):
         if agent.state == 0:
@@ -29,7 +29,7 @@ def agent_portrayal(agent):
             portrayal.color = "yellow" # color amarillo para el semaforo
 
     if isinstance(agent, Obstacle):
-        portrayal.color = "#555"
+        portrayal.color = "#555" 
     
     # Añadir visualización para los carros
     if isinstance(agent, Car):
@@ -43,7 +43,7 @@ def post_process(ax):
 
 
 model_params = {
-    "N": 5,
+    "N":4,# numero de carros
     "seed": {
         "type": "InputText",
         "value": 42,
