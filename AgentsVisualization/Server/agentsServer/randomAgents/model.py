@@ -17,7 +17,7 @@ class CityModel(Model):
     def __init__(self, N, seed=4):
 
         super().__init__(seed=seed)
-        self.carros_llegados = 0 # Contador de carros que han llegado a su destino
+        self.carros_llegados = 0
 
 
         # Load the map dictionary. The dictionary maps the characters in the map file to the corresponding agent.
@@ -28,9 +28,8 @@ class CityModel(Model):
         self.traffic_lights = []
 
         # Load the map file. The map file is a text file where each character represents an agent.
-        with open(os.path.join(base_path, "city_files/2023_base.txt")) as baseFile:
+        with open(os.path.join(base_path, "city_files/2025_base.txt")) as baseFile:
             lines = baseFile.readlines()
-            lines = [line.strip() for line in lines]  # Strip todas las líneas para evitar espacios en blanco
             self.width = len(lines[0])
             self.height = len(lines)
 
@@ -61,59 +60,49 @@ class CityModel(Model):
                     elif col == "D":
                         agent = Destination(self, cell)
 
-        # Buscar carreteras cerca de las esquinas para spawneo
-        self.spawn_points = self.encontrar_spawn_points()
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = self.grid[(x, y)]
+                if len(cell.agents) == 0:
+                    # buscar celda a la izquierda
+                    if x > 0:
+                        cell_izquierda = self.grid[(x - 1, y)]
+                        # copiar el tipo de agente de la izquierda
+                        for agent_izq in cell_izquierda.agents:
+                            if isinstance(agent_izq, Road):
+                                # copiar road con la misma dirección
+                                agent = Road(self, cell, agent_izq.direction)
+                            elif isinstance(agent_izq, Obstacle):
+                                agent = Obstacle(self, cell)
+                            elif isinstance(agent_izq, Destination):
+                                agent = Destination(self, cell)
+                            elif isinstance(agent_izq, Traffic_Light):
+                                # copiar semaforo con el mismo estado
+                                agent = Traffic_Light(self, cell, agent_izq.state, agent_izq.timeToChange)
+                                self.traffic_lights.append(agent)
+
+        # Guardamos las esquinas para usar después
+        self.esquinas = [
+            self.grid[(0, 0)], # esquina inferior izquierda                          
+            self.grid[(self.width - 2, 0)], # esquina inferior derecha             
+            self.grid[(0, self.height - 1)], # esquina superior izquierda            
+            self.grid[(self.width - 2, self.height - 1)] # esquina superior derecha
+        ]
         
         # Crear los primeros 4 agentes al inicio
-        for i in range(min(4, len(self.spawn_points))):
-            cell = self.spawn_points[i]
+        for i in range(4):
+            cell = self.esquinas[i % 4]
             agent = Car(self, cell)
 
         self.running = True
 
-    def encontrar_spawn_points(self):
-        """Encuentra carreteras cerca de las esquinas para spawneo"""
-        esquinas = [
-            (0, 0),
-            (self.width - 1, 0),
-            (0, self.height - 1),
-            (self.width - 1, self.height - 1)
-        ]
-        
-        spawn_points = []
-        for esquina in esquinas:
-            # buscar carretera cercana a cada esquina
-            x, y = esquina
-            mejor_road = None
-            mejor_distancia = float('inf')
-            
-            # buscar en un radio de 5 celdas
-            for dx in range(-5, 6):
-                for dy in range(-5, 6):
-                    nx, ny = x + dx, y + dy
-                    if (0 <= nx < self.width and 0 <= ny < self.height):
-                        cell = self.grid[(nx, ny)]
-                        # verificar si tiene Road
-                        for agent in cell.agents:
-                            if isinstance(agent, Road):
-                                distancia = abs(dx) + abs(dy)
-                                if distancia < mejor_distancia:
-                                    mejor_distancia = distancia
-                                    mejor_road = cell
-                                break
-            
-            if mejor_road:
-                spawn_points.append(mejor_road)
-        
-        return spawn_points if spawn_points else [self.grid[(0, 0)]]  # fallback
-
     def step(self):
         """Advance the model by one step."""
         
-        # Crear 4 nuevos agentes cada 10 steps
-        if self.steps % 10 == 0 and self.steps > 0:
-            for i in range(min(4, len(self.spawn_points))):
-                cell = self.spawn_points[i]
+        # Crear 4 nuevos agentes cada ciertos steps
+        if self.steps % 10== 0 and self.steps > 0:
+            for i in range(4):
+                cell = self.esquinas[i % 4]
                 agent = Car(self, cell)
         
         self.agents.shuffle_do("step")
