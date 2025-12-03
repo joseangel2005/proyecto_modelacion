@@ -8,7 +8,7 @@
 
 'use strict';
 
-import { Object3D } from '../libs/object3d';
+import { Object3D, Car3D } from '../libs/object3d';
 
 // Define the agent server URI
 const agent_server_uri = "http://localhost:8585/";
@@ -68,45 +68,44 @@ async function getAgents() {
             // Parse the response as JSON
             let result = await response.json();
 
-            // Log the agent positions
-            //console.log("getAgents positions: ", result.positions)
+            const positions = result.positions || [];
 
-            // Check if the agents array is empty
-            if (agents.length == 0) {
-                // Create new agents and add them to the agents array
-                for (const agent of result.positions) {
+            const aliveCars = new Set(positions.map(car => car.id));
 
-                    const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
-                    // Store the initial position
-                    newAgent['oldPosArray'] = [...newAgent.posArray];
-                    newAgent.prevPos     = [...newAgent.posArray];
-                    newAgent.nextPos     = [...newAgent.posArray];
-                    newAgent.newPos = [...newAgent.posArray];
-                    agents.push(newAgent);
+            for (let i = agents.length - 1; i >= 0; i--) {
+                const c = agents[i];
+                if (!aliveCars.has(c.id)) {
+                    agents.splice(i, 1);
                 }
-                // Log the agents array
-                //console.log("Agents:", agents);
+            }
 
-            } else {
-                // Update the positions of existing agents
-                for (const agent of result.positions) {
-                    const current_agent = agents.find((object3d) => object3d.id == agent.id);
+            for (const car of positions) {
+                // Create an or update Object3D for each car
+                const newPos = [car.x, car.y, car.z]; 
 
-                    // Check if the agent exists in the agents array
-                    if(current_agent != undefined){
-                        // Update the agent's position
-                        current_agent.prevPos = current_agent.nextPos;
-                        
-                        //current_agent.oldPosArray = current_agent.nextPos;
-                        current_agent.position = {x: agent.x, y: agent.y - 0.8, z: agent.z};
+                let obj = agents.find(object3d => object3d.id === car.id);
 
-                        current_agent.nextPos = current_agent.newPos;
+                if (!obj) {
+                    // First create the new car
+                    obj = new Car3D(car.id, newPos);;
+                    obj.isCar = true;
+                    // Initial position
+                    obj.serverPos = [...newPos];
+                    obj.oldServerPos = [...newPos];
 
-                        current_agent.newPos = [...current_agent.posArray];
+                    // obj.dirrection = car.actualDirection; // Store the direction
+                    agents.push(obj);
+                } else {
+                    // Actualizar Car3D existente
+                    if (obj.updateServerPosition) {
+                        obj.updateServerPosition(newPos);
+                    } else {
+                        // fallback por si todavía hubiera algún Object3D viejo
+                        obj.oldServerPos = obj.serverPos ? [...obj.serverPos] : [...obj.posArray];
+                        obj.serverPos = [...newPos];
                     }
 
-                    //console.log("OLD: ", current_agent.oldPosArray,
-                    //            " NEW: ", current_agent.posArray);
+                    obj.setPosition(newPos);
                 }
             }
         }
@@ -246,9 +245,6 @@ async function update() {
         if (response.ok) {
             // Retrieve the updated agent positions
             await getAgents();
-            // for (){
-
-            // }
             await getTrafficLights();
             for (const tl of trafficLight){
                 let baseColor;

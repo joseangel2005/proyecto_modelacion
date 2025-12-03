@@ -94,4 +94,75 @@ class Object3D {
 
 };
 
-export { Object3D };
+class Car3D extends Object3D {
+   constructor(id, position = [0, 0, 0]) {
+    super(id, position);
+    this.isCar = true;
+
+    // Para interpolación con el servidor
+    this.serverPos = [...position];
+    this.oldServerPos = [...position];
+
+    // Para animar llantas
+    this.axles = []; // aquí se guardan los ejes (pares de llantas)
+  }
+
+  // Asigna el VAO / buffers del modelo base de carro
+  setupFromBase(baseCarModel) {
+    this.arrays = baseCarModel.arrays;
+    this.bufferInfo = baseCarModel.bufferInfo;
+    this.vao = baseCarModel.vao;
+    this.scale = { x: 0.3, y: 0.3, z: 0.3 };
+  }
+
+  // Crea 2 ejes (delantero y trasero) usando el modelo "llantasPair"
+  addAxlesFromBase(baseWheelPairModel, scene) {
+    if (!baseWheelPairModel) return;
+    if (this.axles && this.axles.length > 0) return; // ya estaban creadas
+
+    // Ajusta estos offsets según se vean
+    const axleOffsets = [
+      { name: 'front', offset: [0.0, 0,  0.29] }, // Eje delantero
+      { name: 'rear',  offset: [0.0, 0, -0.14] }, // Eje trasero
+    ];
+
+    this.axles = [];
+
+    const carPos = this.posArray;  // [x, y, z] del carro
+
+    for (const a of axleOffsets) {
+      const axle = new Object3D(`${this.id}_axle_${a.name}`);
+
+      axle.arrays = baseWheelPairModel.arrays;
+      axle.bufferInfo = baseWheelPairModel.bufferInfo;
+      axle.vao = baseWheelPairModel.vao;
+
+      axle.scale = { x: 0.3, y: 0.2, z: 0.3 };
+      //axle.color = [1, 0, 1, 1]; // magenta para que griten "¡aquí estoy!"
+
+      axle.parentAgent = this;
+      axle.localOffset = a.offset;
+      axle.spin = 0;
+      axle.isAxle = true;
+
+      // POSICIÓN INICIAL = posición del carro + offset local
+      const [ox, oy, oz] = a.offset;
+      axle.setPosition([
+        carPos[0] + ox,
+        carPos[1] + oy,
+        carPos[2] + oz,
+      ]);
+
+      this.axles.push(axle);
+      if (scene) scene.addObject(axle);
+    }
+  }
+
+  // Helper para que el API actualice serverPos / oldServerPos limpio
+  updateServerPosition(newPos) {
+    this.oldServerPos = this.serverPos ? [...this.serverPos] : [...this.posArray];
+    this.serverPos = [...newPos];
+  }
+}
+
+export { Object3D, Car3D};

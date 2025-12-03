@@ -15,7 +15,7 @@ import GUI from 'lil-gui';
 import { M4 } from '../libs/3d-lib';
 import { Scene3D } from '../libs/scene3d';
 import { Light3D } from '../libs/light3d';
-import { Object3D } from '../libs/object3d';
+import { Object3D, Car3D } from '../libs/object3d';
 import { Camera3D } from '../libs/camera3d';
 
 // Functions and arrays for the communication with the API
@@ -30,9 +30,12 @@ import {
 // Define the shader code, using GLSL 3.00
 import vsGLSL from '../assets/shaders/vs_color.glsl?raw';
 import fsGLSL from '../assets/shaders/fs_color.glsl?raw';
+import vsTextureGLSL from "../assets/shaders/vs_flat_textures.glsl?raw";
+import fsTextureGLSL from "../assets/shaders/fs_flat_textures.glsl?raw";
+
 import destinationBuilding from '../assets/models/edificio.obj?raw';
 import semaforo from '../assets/models/semaforo.obj?raw'
-import carros from '../assets/models/CarLeft.obj?raw'
+import carros from '../assets/models/Car-nowheels.obj?raw'
 import arboles from '../assets/models/TreeNew.obj?raw'
 import roadTextureImage from '../assets/textures/calletextura.jpg';
 import wheels from '../assets/models/llantasPair.obj?raw'
@@ -57,10 +60,12 @@ const settings = {
 // Global variables
 let colorProgramInfo = undefined;
 let gl = undefined;
-const duration = 1000; // ms
+const duration = 500; // ms
 let elapsed = 0;
 let then = 0;
 let roadTexture;
+let baseCarModel;
+let baseWheelPairModel; 
 
 const MAX_TRAFFIC_LIGHTS = 24;
 let activeTraffcLightsPositions = new Float32Array(MAX_TRAFFIC_LIGHTS * 3);
@@ -77,6 +82,8 @@ async function main() {
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
   roadTexture = twgl.createTexture(gl, {
+    min: gl.NEAREST,
+    mag: gl.NEAREST,
     src: roadTextureImage
   });
 
@@ -146,61 +153,15 @@ function setupObjects(scene, gl, programInfo) {
   const baseCar = new Object3D(-4);
   baseCar.prepareVAO(gl, programInfo, carros);
 
+  baseCarModel = baseCar;
+
   const basetree = new Object3D(-5);
   basetree.prepareVAO(gl, programInfo, arboles);
 
   const baseWheelPair = new Object3D(-6);
   baseWheelPair.prepareVAO(gl, programInfo, wheels);
 
-  
-  // //A scaled cube to use as the ground
-  // const ground = new Object3D(-3, [14, 0, 14]);
-  // ground.arrays = baseCube.arrays;
-  // ground.bufferInfo = baseCube.bufferInfo;
-  // ground.vao = baseCube.vao;
-  // ground.scale = {x: 50, y: 0.1, z: 50};
-  // ground.color = [0.6, 0.6, 0.6, 1];
-  // scene.addObject(ground);
-  
-
-  // Copy the properties of the base objects
-  for (const agent of agents) {
-    agent.arrays = baseCar.arrays;
-    agent.bufferInfo = baseCar.bufferInfo;
-    agent.vao = baseCar.vao;
-    agent.scale = { x: 0.3, y: 0.3, z: 0.3 };
-    const p = agent.posArray;
-    agent.prevPos = [p[0], p[1], p[2]];
-    agent.nextPos = [p[0], p[1], p[2]];   // al inicio están en el mismo lugar
-   // console.log(agent);
-    scene.addObject(agent);
-
-  //   agent.axles = [];
-
-  // // Solo necesitamos offsets en Y y Z (adelante/atrás),
-  // // el modelo ya trae la separación en X.
-  // const axleOffsets = [
-  //   { name: 'front', offset: [0.0, -0.7,  0.35] }, // Eje delantero
-  //   { name: 'rear',  offset: [0.0, -0.7, -0.35] }, // Eje trasero
-  // ];
-
-  // for (const a of axleOffsets) {
-  //   const axle = new Object3D(-10);
-  //   axle.arrays = baseWheelPair.arrays;
-  //   axle.bufferInfo = baseWheelPair.bufferInfo;
-  //   axle.vao = baseWheelPair.vao;
-
-  //   axle.scale = { x: 0.15, y: 0.15, z: 0.15 }; // ajusta al tamaño del carro
-  //   axle.color = [0.1, 0.1, 0.1, 1];            // color de llanta
-  //   axle.parentAgent = agent;
-  //   axle.localOffset = a.offset;
-  //   axle.spin = 0;                               // ángulo de giro
-  //   axle.isAxle = true;
-
-  //   agent.axles.push(axle);
-  //   scene.addObject(axle);
-  //}
-  }
+  baseWheelPairModel = baseWheelPair;
 
   // Copy the properties of the base objects
   for (const o of obstacles) {
@@ -217,18 +178,8 @@ function setupObjects(scene, gl, programInfo) {
     d.bufferInfo = baseDestination.bufferInfo;
     d.vao = baseDestination.vao;
     d.scale = { x: 0.017, y: 0.03, z: 0.017 };
-    //d.color = [0.647, 0.165, 0.165, 1];
     scene.addObject(d);
   }
-
-  // for (const r of roads) {
-  //   r.arrays = baseCube.arrays;
-  //   r.bufferInfo = baseCube.bufferInfo;
-  //   r.vao = baseCube.vao;
-  //   r.scale = {x: 50, y: 0.1, z: 50};
-  //   r.color = [0.6, 0.6, 0.6, 1];
-  //   scene.addObject(r);
-  // }
 
   for (const agent of roads) {
     agent.arrays = baseCube.arrays;
@@ -254,121 +205,150 @@ function setupObjects(scene, gl, programInfo) {
   tl.color = baseColor;
 
   tl.isTrafficLight = true;
-  tl.emissiveColor = baseColor;   // si quieres que brille del mismo color
+  tl.emissiveColor = baseColor; 
 
     scene.addObject(tl);
   }
 
+  createCarObjects();
+
+}
+
+// Function to synchronize car objects in the scene with the cars array in the API connection
+function createCarObjects() {
+
+  const aliveCars = new Set(agents.map(car => car.id));
+
+  // Remove cars that are no longer present
+  scene.objects = scene.objects.filter(obj => {
+    if (!obj.isCar) return true; // if an object is not a car, keep it 
+    return aliveCars.has(obj.id); // keep only cars that haven't get to their destination
+  });
+
+  for (let i = 0; i < agents.length; i++) {
+    let car = agents[i];
+
+    // Por si por alguna razón quedó algún Object3D viejo, lo convertimos a Car3D
+    if (!(car instanceof Car3D)) {
+      const newCar = new Car3D(car.id, car.posArray);
+      // copiar estado básico
+      newCar.serverPos = car.serverPos || [...car.posArray];
+      newCar.oldServerPos = car.oldServerPos || [...car.posArray];
+      agents[i] = newCar;
+      car = newCar;
+    }
+
+    // Asignar el modelo del carro
+    if (baseCarModel) {
+      car.setupFromBase(baseCarModel);
+    }
+
+    // Crear llantas si aún no existen
+    if (baseWheelPairModel) {
+      car.addAxlesFromBase(baseWheelPairModel, scene);
+    }
+
+    // Agregar el carro a la escena si no está
+    if (!scene.objects.includes(car)) {
+      scene.addObject(car);
+    }
+  }
 }
 
 function updateAxles(fract) {
-  const wheelRadius = 0.15;  // aprox., ajústalo a tu modelo
+  const wheelRadius = 0.15;
 
   for (const agent of agents) {
-    if (!agent.prevPos || !agent.nextPos || !agent.axles) continue;
+    if (!agent.axles || !agent.oldServerPos || !agent.serverPos) continue;
 
-    const dx = agent.nextPos[0] - agent.prevPos[0];
-    const dy = agent.nextPos[1] - agent.prevPos[1];
-    const dz = agent.nextPos[2] - agent.prevPos[2];
+    const a = agent.oldServerPos || agent.serverPos;
+    const b = agent.serverPos;
 
-    const t = Math.min((agent.t ?? 0) + fract, 1.0);
-    const x = agent.prevPos[0] + dx * t;
-    const y = agent.prevPos[1] + dy * t;
-    const z = agent.prevPos[2] + dz * t;
+    const carInterpPos = [
+      a[0] + (b[0] - a[0]) * fract,
+      0.1,
+      a[2] + (b[2] - a[2]) * fract,
+    ];
 
-    // Rumbo del carro (eje Y)
-    const heading = Math.atan2(dx, dz);
+    agent.setPosition(carInterpPos);
 
-    // Distancia recorrida aprox en este frame
-    const dist = Math.sqrt(dx*dx + dz*dz) * fract;
+    const dx = b[0] - a[0];
+    const dz = b[2] - a[2];
+
+    const seMueve = 1e-4;
+    if (Math.abs(dx) > seMueve || Math.abs(dz) > seMueve) {
+      const heading = Math.atan2(dx, dz);
+      agent.rotRad.y = heading;
+    }
+
+    const dist = Math.sqrt(dx * dx + dz * dz) * fract;
     const deltaSpin = (wheelRadius > 0) ? dist / wheelRadius : 0;
 
     for (const axle of agent.axles) {
       axle.spin = (axle.spin || 0) + deltaSpin;
-
-      // Rotación: giro de llantas + rumbo del carro
       axle.rotRad = axle.rotRad || { x: 0, y: 0, z: 0 };
-
-      // Asumiendo que la rueda gira con eje en Z o X:
-      // Si en tu modelo gira sobre X:
       axle.rotRad.x = axle.spin;
-      // Si en tu modelo gira sobre Z, usa:
-      // axle.rotRad.z = axle.spin;
-
-      axle.rotRad.y = heading; // que apunten como el carro
-
-      const [ox, oy, oz] = axle.localOffset;
-
-      // Offset rotado por el heading (rotación en Y)
-      const ax = x + ox * Math.cos(heading) - oz * Math.sin(heading);
-      const az = z + ox * Math.sin(heading) + oz * Math.cos(heading);
-
-      axle.posArray[0] = ax;
-      axle.posArray[1] = y + oy;
-      axle.posArray[2] = az;
+      axle.rotRad.y = 0; // opcional
     }
   }
 }
 
 // Draw an object with its corresponding transformations
 function drawObject(gl, programInfo, object, viewProjectionMatrix, fract) {
-  // Prepare the vector for translation and scale
-  let v3_tra;
-  if (object.prevPos && object.nextPos) {
-    
-    const x = object.prevPos[0] + (object.nextPos[0] - object.prevPos[0]) * fract;
-    const y = object.prevPos[1] + (object.nextPos[1] - object.prevPos[1]) * fract;
-    const z = object.prevPos[2] + (object.nextPos[2] - object.prevPos[2]) * fract;
-    v3_tra = [x, y, z];
-    if(object.id == 601){
-      //console.log("prevPos:", object.prevPos, "nextPos:", object.nextPos, "ve_tra:", v3_tra);
-      console.log("fract:", fract, "ve_tra:", v3_tra);
 
-    }
+  let transforms;
+
+  if (object.isAxle && object.parentAgent) {
+    const parent = object.parentAgent;
+
+    // Matriz del carro
+    const p_rotXMat = M4.rotationX(parent.rotRad.x);
+    const p_rotYMat = M4.rotationY(parent.rotRad.y);
+    const p_rotZMat = M4.rotationZ(parent.rotRad.z);
+    const p_traMat = M4.translation(parent.posArray);
+
+    let parentMat = M4.identity();
+    parentMat = M4.multiply(p_rotXMat, parentMat);
+    parentMat = M4.multiply(p_rotYMat, parentMat);
+    parentMat = M4.multiply(p_rotZMat, parentMat);
+    parentMat = M4.multiply(p_traMat, parentMat);
+
+    // Matriz SOLO de las llantas
+    const v3_localTra = object.localOffset || [0, 0, 0];
+    const c_scaMat = M4.scale(object.scaArray);
+    const c_rotXMat = M4.rotationX(object.rotRad.x); // spin
+    const c_rotYMat = M4.rotationY(object.rotRad.y); // por si después quieres dirección
+    const c_rotZMat = M4.rotationZ(object.rotRad.z);
+    const c_traMat = M4.translation(v3_localTra);
+
+    let childMat = M4.identity();
+    childMat = M4.multiply(c_scaMat, childMat);
+    childMat = M4.multiply(c_rotXMat, childMat);
+    childMat = M4.multiply(c_rotYMat, childMat);
+    childMat = M4.multiply(c_rotZMat, childMat);
+    childMat = M4.multiply(c_traMat, childMat);
+
+    //Mundo = Carro * LocalLlantas
+    transforms = M4.multiply(parentMat, childMat);
+
   } else {
-    v3_tra = object.posArray;
+    // Cualquier objeto de scene
+    const v3_tra = object.posArray;
+    const v3_sca = object.scaArray;
+
+    const scaMat = M4.scale(v3_sca);
+    const rotXMat = M4.rotationX(object.rotRad.x);
+    const rotYMat = M4.rotationY(object.rotRad.y);
+    const rotZMat = M4.rotationZ(object.rotRad.z);
+    const traMat = M4.translation(v3_tra);
+
+    transforms = M4.identity();
+    transforms = M4.multiply(scaMat, transforms);
+    transforms = M4.multiply(rotXMat, transforms);
+    transforms = M4.multiply(rotYMat, transforms);
+    transforms = M4.multiply(rotZMat, transforms);
+    transforms = M4.multiply(traMat, transforms);
   }
-
-  
-
-  //v3_tra = object.posArray;
-  let v3_sca = object.scaArray;
-
-  /*
-  // Animate the rotation of the objects
-  object.rotDeg.x = (object.rotDeg.x + settings.rotationSpeed.x * fract) % 360;
-  object.rotDeg.y = (object.rotDeg.y + settings.rotationSpeed.y * fract) % 360;
-  object.rotDeg.z = (object.rotDeg.z + settings.rotationSpeed.z * fract) % 360;
-  object.rotRad.x = object.rotDeg.x * Math.PI / 180;
-  object.rotRad.y = object.rotDeg.y * Math.PI / 180;
-  object.rotRad.z = object.rotDeg.z * Math.PI / 180;
-  */
-
-  if (object.prevPos && object.nextPos) {
-  const dx = object.nextPos[0] - object.prevPos[0];
-  const dz = object.nextPos[2] - object.prevPos[2];
-
-  // evita dividir entre 0: sólo si realmente hay movimiento
-  if (Math.abs(dx) > 1e-4 || Math.abs(dz) > 1e-4) {
-    // si tu carro "apunta" originalmente al eje +Z, esto funciona:
-    object.rotRad.y = Math.atan2(dx, dz);
-  }
-}
-
-  // Create the individual transform matrices
-  const scaMat = M4.scale(v3_sca);
-  const rotXMat = M4.rotationX(object.rotRad.x);
-  const rotYMat = M4.rotationY(object.rotRad.y);
-  const rotZMat = M4.rotationZ(object.rotRad.z);
-  const traMat = M4.translation(v3_tra);
-
-  // Create the composite matrix with all transformations
-  let transforms = M4.identity();
-  transforms = M4.multiply(scaMat, transforms);
-  transforms = M4.multiply(rotXMat, transforms);
-  transforms = M4.multiply(rotYMat, transforms);
-  transforms = M4.multiply(rotZMat, transforms);
-  transforms = M4.multiply(traMat, transforms);
 
   object.matrix = transforms;
 
@@ -427,7 +407,7 @@ async function drawScene() {
   //console.log(scene.camera);
   const viewProjectionMatrix = setupViewProjection(gl);
 
-  //updateAxles(fract);
+  updateAxles(fract);
 
   // Draw the objects
   gl.useProgram(colorProgramInfo.program);
@@ -467,14 +447,6 @@ async function drawScene() {
     activeTrafficLightCount++;
   }
 
-  // console.log(trafficLight[0]);
-//   console.log("trafficLightCount", activeTrafficLightCount);
-// console.log("first TL pos", 
-//   activeTraffcLightsPositions[0],
-//   activeTraffcLightsPositions[1],
-//   activeTraffcLightsPositions[2]
-// );
-
   const MAX_LIGHTS = 2;
   const activeLights = scene.lights.slice(0, MAX_LIGHTS);
 
@@ -505,6 +477,7 @@ async function drawScene() {
   if (elapsed >= duration) {
     elapsed = 0;
     await update();
+    createCarObjects();
   }
 
   requestAnimationFrame(drawScene);
