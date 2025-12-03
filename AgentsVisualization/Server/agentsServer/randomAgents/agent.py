@@ -1,6 +1,6 @@
-from mesa.discrete_space import CellAgent, FixedAgent
-import random
-import heapq
+from mesa.discrete_space import CellAgent, FixedAgent # importar CellAgent y FixedAgent de mesa
+import random # importar random para selecciones aleatorias
+import heapq # importar heapq para la gestion de la cola de prioridad en A*
 
 #con esta clase podemos hacer que a* tenga un mejor proposito en vez de solo contar celdas
 class CalculadorCostos:
@@ -16,9 +16,9 @@ class CalculadorCostos:
             carros_cercanos += carros_en_vecino
         
         # aplicar costo por congestion
-        if carros_cercanos == 1:
+        if carros_cercanos == 2:
             costo += 10
-        elif carros_cercanos >= 2:
+        elif carros_cercanos >= 3:
             costo += 20
         
         # aplicar costo por semaforo
@@ -28,9 +28,9 @@ class CalculadorCostos:
                     costo += 30
                 elif agent.state == 0:  # rojo
                     costo += 50
-            # aplicar costo ALTO a destinos ajenos para que los evite
+            # aplicar costo altisimo a destinos ajenos para que los evite
             if isinstance(agent, Destination) and celda != destino_propio:
-                costo += 1000  # costo muy alto para evitar destinos ajenos
+                costo += 100000000000000000000000000000000000000000000000 
         
         return costo
 
@@ -204,11 +204,11 @@ class Car(CellAgent):
                 road = agent
                 break
         
-        if road is None:
+        if road is None: # si en dado caso no es una carretera retorna lista vacia
             return []
         
-        direccion = road.direction
-        carriles = []
+        direccion = road.direction # obtener la direccion de la carretera
+        carriles = [] # lista para almacenar las posiciones de los carriles alternativos
         
         # solo las diagonales, no el movimiento hacia adelante
         if direccion == "Up":
@@ -234,7 +234,7 @@ class Car(CellAgent):
         
         return carriles_validos
 
-    def step(self):
+    def step(self): #definimos el paso del carro
         """ 
         Determines the new direction it will take, and then moves
         """
@@ -251,10 +251,9 @@ class Car(CellAgent):
             self.remove()
             return
         
-        # recalcular ruta cada 5 pasos para adaptarse al trafico
+        # recalcular ruta cada ciertos pasos para adaptarse al trafico
         self.pasos_desde_recalculo += 1
-        if self.pasos_desde_recalculo >= 5:
-            self.camino = AStar.buscar_camino(self.cell, [self.destino], self.model, self.destino)
+        if self.pasos_desde_recalculo >= 7 and random.random() < 0.3: # con cada 7 pasos hay 30% de probabilidad de que los carro recalculen su ruta solo el 30 % de ellos lo hacen de manera aleatoria 
             self.pasos_desde_recalculo = 0
             if not self.camino:
                 return
@@ -307,7 +306,7 @@ class Car(CellAgent):
             self.camino.pop(0)
             self.pasos_sin_mover = 0
             
-class Traffic_Light(FixedAgent):
+class Traffic_Light(FixedAgent): #clase de semaforo
     """
     Traffic light. Where the traffic lights are in the grid.
     """
@@ -320,19 +319,19 @@ class Traffic_Light(FixedAgent):
             state: Traffic light state (0=red, 1=green, 2=yellow)
             timeToChange: After how many step should the traffic light change color 
         """
-        super().__init__(model)
-        self.cell = cell
-        self.state = state
-        self.timeToChange = timeToChange
+        super().__init__(model) # llamar al constructor de la clase padre
+        self.cell = cell # posicion inicial del semaforo
+        self.state = state# estado inicial del semaforo
+        self.timeToChange = timeToChange # tiempo para cambiar de estado
 
-    def step(self):
+    def step(self): # definimos el paso del semaforo
         """ 
         To change the state (green, yellow, or red) of the traffic light.
         """
-        if self.model.steps % self.timeToChange == 0:
+        if self.model.steps % self.timeToChange == 0: #si se cumple el tiempo para cambiar de estado
             self.state = (self.state + 1) % 3
 
-class Destination(FixedAgent):
+class Destination(FixedAgent): # clase de destino
     """
     Destination agent. Where each car should go.
     """
@@ -346,7 +345,7 @@ class Destination(FixedAgent):
         super().__init__(model)
         self.cell = cell
 
-class Obstacle(FixedAgent):
+class Obstacle(FixedAgent): # clase de obstaculo que no se mueven los edificios
     """
     Obstacle agent. Just to add obstacles to the grid.
     """
@@ -361,7 +360,7 @@ class Obstacle(FixedAgent):
         super().__init__(model)
         self.cell = cell
 
-class Road(FixedAgent):
+class Road(FixedAgent): #clase de carretera
     """
     Road agent. Determines where the cars can move, and in which direction.
     """
