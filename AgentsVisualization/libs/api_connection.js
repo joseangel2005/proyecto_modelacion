@@ -75,9 +75,13 @@ async function getAgents() {
             if (agents.length == 0) {
                 // Create new agents and add them to the agents array
                 for (const agent of result.positions) {
+
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
                     // Store the initial position
-                    newAgent['oldPosArray'] = newAgent.posArray;
+                    newAgent['oldPosArray'] = [...newAgent.posArray];
+                    newAgent.prevPos     = [...newAgent.posArray];
+                    newAgent.nextPos     = [...newAgent.posArray];
+                    newAgent.newPos = [...newAgent.posArray];
                     agents.push(newAgent);
                 }
                 // Log the agents array
@@ -91,8 +95,14 @@ async function getAgents() {
                     // Check if the agent exists in the agents array
                     if(current_agent != undefined){
                         // Update the agent's position
-                        current_agent.oldPosArray = current_agent.posArray;
-                        current_agent.position = {x: agent.x, y: agent.y - 1, z: agent.z};
+                        current_agent.prevPos = current_agent.nextPos;
+                        
+                        //current_agent.oldPosArray = current_agent.nextPos;
+                        current_agent.position = {x: agent.x, y: agent.y - 0.8, z: agent.z};
+
+                        current_agent.nextPos = current_agent.newPos;
+
+                        current_agent.newPos = [...current_agent.posArray];
                     }
 
                     //console.log("OLD: ", current_agent.oldPosArray,
@@ -122,7 +132,7 @@ async function getObstacles() {
 
             // Create new obstacles and add them to the obstacles array
             for (const obstacle of result.positions) {
-                const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y -1, obstacle.z]);
+                const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y-1.6, obstacle.z]);
                 obstacles.push(newObstacle);
             }
             // Log the obstacles array
@@ -236,37 +246,18 @@ async function update() {
         if (response.ok) {
             // Retrieve the updated agent positions
             await getAgents();
+            // for (){
+
+            // }
             await getTrafficLights();
             for (const tl of trafficLight){
-                if (!tl.light) continue;   // por si aún no se creó la luz
-
                 let baseColor;
                 if (tl.state === 0)       baseColor = [1, 0, 0, 1];    // rojo
                 else if (tl.state === 1)  baseColor = [0, 1, 0, 1];    // verde
                 else if (tl.state === 2)  baseColor = [1, 1, 0, 1];    // amarillo
                 else                      baseColor = [1, 1, 1, 1];    // blanco
 
-                // Escalamos el color para ambient/diffuse/specular
-                tl.light.ambient  = [
-                    0.2 * baseColor[0],
-                    0.2 * baseColor[1],
-                    0.2 * baseColor[2],
-                    1.0
-                ];
-
-                tl.light.diffuse  = [
-                    0.8 * baseColor[0],
-                    0.8 * baseColor[1],
-                    0.8 * baseColor[2],
-                    1.0
-                ];
-
-                tl.light.specular = [
-                    baseColor[0],
-                    baseColor[1],
-                    baseColor[2],
-                    1.0
-                ];
+                tl.color = baseColor;
             }
             // Log a message indicating that the agents have been updated
             //console.log("Updated agents");
