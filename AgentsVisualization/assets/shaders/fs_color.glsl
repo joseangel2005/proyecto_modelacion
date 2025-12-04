@@ -3,7 +3,7 @@ precision highp float;
 
 // Constante de número máximo de luces que usas en JS
 const int MAX_LIGHTS = 2;
-const int MAX_TRAFFIC_LIGHTS = 24; // NUEVO
+const int MAX_TRAFFIC_LIGHTS = 50; 
 
 // Info de la cámara y luces
 uniform vec3 u_viewWorldPosition;
@@ -24,11 +24,9 @@ uniform vec4 u_diffuseColor;
 uniform vec4 u_specularColor;
 uniform float u_shininess;
 
-// Textura opcional (para el piso, etc.)
 uniform sampler2D u_texture;
 uniform bool u_useTexture;
 
-// ----- Parte especial para SEMÁFOROS -----
 uniform bool u_isTrafficLight;   // true si este objeto es semáforo
 uniform vec4 u_emissiveColor;    // color que "emite" (rojo/verde/amarillo)
 
