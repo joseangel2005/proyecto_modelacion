@@ -1,7 +1,3 @@
-# TC2008B. Sistemas Multiagentes y Gráficas Computacionales
-# Python flask server to interact with webGL.
-# Octavio Navarro. 2024
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from randomAgents.model import CityModel
@@ -181,7 +177,7 @@ def getTrafficLights():
                     "x": coordinate[0],
                     "y": 1,
                     "z": coordinate[1],
-                    "state": a.state          # 0, 1 o 2 (o True/False si así lo manejas)
+                    "state": a.state      
                 }
                 for (coordinate, a) in agents
             ]

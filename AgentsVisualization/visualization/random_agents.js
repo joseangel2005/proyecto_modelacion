@@ -1,13 +1,3 @@
-/*
- * Base program for a 3D scene that connects to an API to get the movement
- * of agents.
- * The scene shows colored cubes
- *
- * Gilberto Echeverria
- * 2025-11-08
- */
-
-
 'use strict';
 
 import * as twgl from 'twgl-base.js';
@@ -30,8 +20,6 @@ import {
 // Define the shader code, using GLSL 3.00
 import vsGLSL from '../assets/shaders/vs_color.glsl?raw';
 import fsGLSL from '../assets/shaders/fs_color.glsl?raw';
-import vsTextureGLSL from "../assets/shaders/vs_flat_textures.glsl?raw";
-import fsTextureGLSL from "../assets/shaders/fs_flat_textures.glsl?raw";
 
 import destinationBuilding from '../assets/models/edificio.obj?raw';
 import semaforo from '../assets/models/semaforo.obj?raw'
@@ -40,34 +28,19 @@ import arboles from '../assets/models/TreeNew.obj?raw'
 import roadTextureImage from '../assets/textures/calletextura.jpg';
 import wheels from '../assets/models/llantasPair.obj?raw'
 
-//import semaforo from '../assets/models/light_traffic_signal.obj?raw';
-
 const scene = new Scene3D();
-
-/*
-// Variable for the scene settings
-const settings = {
-    // Speed in degrees
-    rotationSpeed: {
-        x: 0,
-        y: 0,
-        z: 0,
-    },
-};
-*/
-
 
 // Global variables
 let colorProgramInfo = undefined;
 let gl = undefined;
-const duration = 500; // ms
+let duration = 500; // ms
 let elapsed = 0;
 let then = 0;
 let roadTexture;
 let baseCarModel;
 let baseWheelPairModel; 
 
-const MAX_TRAFFIC_LIGHTS = 24;
+const MAX_TRAFFIC_LIGHTS = 50;
 let activeTraffcLightsPositions = new Float32Array(MAX_TRAFFIC_LIGHTS * 3);
 let activeTraffcLightsColors = new Float32Array(MAX_TRAFFIC_LIGHTS * 3);
 let activeTrafficLightCount = 0;
@@ -163,7 +136,6 @@ function setupObjects(scene, gl, programInfo) {
 
   baseWheelPairModel = baseWheelPair;
 
-  // Copy the properties of the base objects
   for (const o of obstacles) {
     o.arrays = basetree.arrays;
     o.bufferInfo = basetree.bufferInfo;
@@ -255,6 +227,7 @@ function createCarObjects() {
   }
 }
 
+//Actualizar movimiento de carros y llantas
 function updateAxles(fract) {
   const wheelRadius = 0.15;
 
@@ -420,7 +393,7 @@ async function drawScene() {
 
     const i = activeTrafficLightCount;
 
-    // 👇 ACTUALIZAR COLOR SEGÚN EL ESTADO *CADA FRAME*
+    //actualizar color de cada semaforo
     let baseColor;
     if (tl.state === 0)       baseColor = [1, 0, 0, 1];     // rojo
     else if (tl.state === 1)  baseColor = [0, 1, 0, 1];     // verde
@@ -505,9 +478,17 @@ function setupViewProjection(gl) {
 // Setup a ui.
 function setupUI() {
 
-  // const gui = new GUI();
-  // const lightFolder = gui.addFolder('Lights:');
-  // lightFolder.add(settings, 'maxDistance', 0, 200);
+  const gui = new GUI();
+
+  const params = {
+    durationSeconds: duration / 1000,
+  };
+
+  gui.add(params,'durationSeconds', 0.1, 3.0, 0.1)
+    .name('Step duration (s)')
+    .onChange(value => {
+      duration = value * 1000;   // convertir a ms para el código
+    });
 
 
   // const gui = new GUI();

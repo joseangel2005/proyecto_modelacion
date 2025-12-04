@@ -1,11 +1,3 @@
-/*
- * Functions to connect to an external API to get the coordinates of agents
- *
- * Gilberto Echeverria
- * 2025-11-08
- */
-
-
 'use strict';
 
 import { Object3D, Car3D } from '../libs/object3d';

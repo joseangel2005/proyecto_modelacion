@@ -1,10 +1,3 @@
-/*
- * Definition of the class to store the data for 3D objects
- *
- * Gilberto Echeverria
- * 2025-07-22
- */
-
 import * as twgl from 'twgl-base.js';
 
 import { M4 } from '../libs/3d-lib';
