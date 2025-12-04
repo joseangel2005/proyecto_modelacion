@@ -30,6 +30,7 @@ class CityModel(Model):
         # Load the map file. The map file is a text file where each character represents an agent.
         with open(os.path.join(base_path, "city_files/2025_base.txt")) as baseFile:
             lines = baseFile.readlines()
+            lines = [line.rstrip() for line in lines] # con esta lina hara que se quiten los espacios en blanco al final de cada linea sin afectar nada 
             self.width = len(lines[0])
             self.height = len(lines)
 
@@ -60,33 +61,12 @@ class CityModel(Model):
                     elif col == "D":
                         agent = Destination(self, cell)
 
-        for y in range(self.height):
-            for x in range(self.width):
-                cell = self.grid[(x, y)]
-                if len(cell.agents) == 0:
-                    # buscar celda a la izquierda
-                    if x > 0:
-                        cell_izquierda = self.grid[(x - 1, y)]
-                        # copiar el tipo de agente de la izquierda
-                        for agent_izq in cell_izquierda.agents:
-                            if isinstance(agent_izq, Road):
-                                # copiar road con la misma dirección
-                                agent = Road(self, cell, agent_izq.direction)
-                            elif isinstance(agent_izq, Obstacle):
-                                agent = Obstacle(self, cell)
-                            elif isinstance(agent_izq, Destination):
-                                agent = Destination(self, cell)
-                            elif isinstance(agent_izq, Traffic_Light):
-                                # copiar semaforo con el mismo estado
-                                agent = Traffic_Light(self, cell, agent_izq.state, agent_izq.timeToChange)
-                                self.traffic_lights.append(agent)
-
-        # Guardamos las esquinas para usar después
+        # Guardamos las esquinas para usar 
         self.esquinas = [
             self.grid[(0, 0)], # esquina inferior izquierda                          
-            self.grid[(self.width - 2, 0)], # esquina inferior derecha             
+            self.grid[(self.width - 1, 0)], # esquina inferior derecha             
             self.grid[(0, self.height - 1)], # esquina superior izquierda            
-            self.grid[(self.width - 2, self.height - 1)] # esquina superior derecha
+            self.grid[(self.width - 1, self.height - 1)] # esquina superior derecha
         ]
         
         # Crear los primeros 4 agentes al inicio
@@ -100,7 +80,7 @@ class CityModel(Model):
         """Advance the model by one step."""
         
         # Crear 4 nuevos agentes cada ciertos steps
-        if self.steps % 10== 0 and self.steps > 0:
+        if self.steps % 5== 0 and self.steps > 0:
             for i in range(4):
                 cell = self.esquinas[i % 4]
                 agent = Car(self, cell)
