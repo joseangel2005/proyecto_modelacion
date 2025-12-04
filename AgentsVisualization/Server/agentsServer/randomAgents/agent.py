@@ -15,20 +15,20 @@ class CalculadorCostos:
             carros_en_vecino = sum(1 for agent in vecino.agents if isinstance(agent, Car))
             carros_cercanos += carros_en_vecino
         
-        # aplicar costo por congestion
+        # se aplicaron estos costos devido aque si se le agrega uno muy alto ya no tendria mucha importancia la economia por decirlo asi de los costos y no lo puse muy bajo porque si no a los agentes las valdria el costo
         if carros_cercanos == 2:
             costo += 10
         elif carros_cercanos >= 3:
             costo += 20
         
-        # aplicar costo por semaforo
+        # aplicar costo por semaforo,esto se puso a q en mi loquera del dia dije que pasaria si le agrego costos por semaforo para que a si traten de evitar los semaforos y se traten de ir por otras rutas lo cual creo que no hay tantos atajos como pensaba 
         for agent in celda.agents:
             if isinstance(agent, Traffic_Light):
                 if agent.state == 2:  # amarillo
                     costo += 30
                 elif agent.state == 0:  # rojo
                     costo += 50
-            # aplicar costo altisimo a destinos ajenos para que los evite
+            # luego aqui decidi poner este costo tan alto debido a que se me hizo mas facil hacer esto para que los carros no se metan en destinos que no son suyos en vez de modificar el comportamiento de los carros 
             if isinstance(agent, Destination) and celda != destino_propio:
                 costo += 100000000000000000000000000000000000000000000000 
         
@@ -141,7 +141,7 @@ class AStar: # clase para manejar la logica de A*
         return vecinos_permitidos
 
 
-class Car(CellAgent):
+class Car(CellAgent): #clase para el agente carro
     """
     Agent that moves randomly.
     """
@@ -158,7 +158,7 @@ class Car(CellAgent):
         self.destino = None  # destino aleatorio del carro
         self.camino = []  # ruta calculada por A*
         self.camino_calculado = False  # para saber si ya se calculo el camino
-        self.pasos_sin_mover = 0  # contador para detectar carros atascados
+        self.pasos_sin_mover = 0  # contador para detectar carros atascados aunque no se usa por ahora solo como metrica pero podria usarse en un futuro
         self.pasos_desde_recalculo = 0  # contador para recalcular ruta
 
     def elegir_objetivo(self): #elegimos destino
@@ -185,6 +185,7 @@ class Car(CellAgent):
         dx = x_next - x_actual 
         dy = y_next - y_actual
         
+        #movimiento en 3D
         # determinar direccion segun el movimiento para rotar en 3D
         if dy > 0:  # movimiento hacia arriba
             self.direction = "Up"  # rotar carro 90 grados en 3D
@@ -197,8 +198,8 @@ class Car(CellAgent):
     
     def obtener_carriles_alternativos(self):
         # obtener solo las diagonales para el cambio de carril
-        x, y = self.cell.coordinate
-        road = None
+        x, y = self.cell.coordinate # posicion actual
+        road = None # encontrar la carretera en la celda actual
         for agent in self.cell.agents:
             if isinstance(agent, Road):
                 road = agent
@@ -210,7 +211,7 @@ class Car(CellAgent):
         direccion = road.direction # obtener la direccion de la carretera
         carriles = [] # lista para almacenar las posiciones de los carriles alternativos
         
-        # solo las diagonales, no el movimiento hacia adelante
+        # solo las diagonales, para que cambia de carril
         if direccion == "Up":
             carriles = [(x - 1, y + 1), (x + 1, y + 1)]  # diagonales
         elif direccion == "Down":
@@ -229,7 +230,9 @@ class Car(CellAgent):
                 # verificar que no haya obstaculos ni destinos ajenos
                 hay_obstaculo = any(isinstance(agent, Obstacle) for agent in cell.agents)
                 hay_destino_ajeno = any(isinstance(agent, Destination) and cell != self.destino for agent in cell.agents)
-                if not hay_obstaculo and not hay_destino_ajeno:
+                # verificar que no haya semaforo en rojo o amarillo
+                hay_semaforo_rojo = any(isinstance(agent, Traffic_Light) and (agent.state == 0 or agent.state == 2) for agent in cell.agents)
+                if not hay_obstaculo and not hay_destino_ajeno and not hay_semaforo_rojo:
                     carriles_validos.append(cell)
         
         return carriles_validos
@@ -254,6 +257,7 @@ class Car(CellAgent):
         # recalcular ruta cada ciertos pasos para adaptarse al trafico
         self.pasos_desde_recalculo += 1
         if self.pasos_desde_recalculo >= 7 and random.random() < 0.3: # con cada 7 pasos hay 30% de probabilidad de que los carro recalculen su ruta solo el 30 % de ellos lo hacen de manera aleatoria 
+            self.camino = AStar.buscar_camino(self.cell, [self.destino], self.model, self.destino) # asi evitamos que se gasten los recursos a lo tonto
             self.pasos_desde_recalculo = 0
             if not self.camino:
                 return
@@ -262,10 +266,7 @@ class Car(CellAgent):
         if self.camino:
             next_cell = self.camino[0]
             
-            # verificar que no haya otro carro en la siguiente celda
-            hay_carro = any(isinstance(agent, Car) for agent in next_cell.agents)
-            
-            # verificar semaforos
+            # verificar si hay un semaforo en rojo o amarillo en la siguiente celda
             hay_semaforo_rojo = False
             for agent in next_cell.agents:
                 if isinstance(agent, Traffic_Light):
@@ -273,15 +274,23 @@ class Car(CellAgent):
                         hay_semaforo_rojo = True
                         break
             
-            # si hay carro bloqueando, intentar cambiar de carril
-            if hay_carro and not hay_semaforo_rojo:
+            # si hay semaforo rojo/amarillo en la siguiente celda no puede entrar
+            if hay_semaforo_rojo:
+                self.pasos_sin_mover += 1
+                return
+            
+            # verificar que no haya otro carro en la siguiente celda
+            hay_carro = any(isinstance(agent, Car) for agent in next_cell.agents)
+            
+            # si hay carro bloqueando intentar cambiar de carril
+            if hay_carro:
                 carriles = self.obtener_carriles_alternativos()
-                # ordenar carriles por cantidad de carros (menos carros primero)
+                # ordenar carriles por cantidad de carros en donde priorizamos en donde haya menos carros
                 carriles.sort(key=lambda c: sum(1 for a in c.agents if isinstance(a, Car)))
                 
                 for carril in carriles:
                     # verificar que el carril este libre
-                    tiene_carro = any(isinstance(agent, Car) for agent in carril.agents)
+                    tiene_carro = any(isinstance(agent, Car) for agent in carril.agents)   
                     if not tiene_carro:
                         # actualizar direccion del carro para rotacion 3D antes de cambiar de carril
                         self.actualizar_direccion(carril)
@@ -291,12 +300,6 @@ class Car(CellAgent):
                         return
                 
                 # si no hay carril libre, quedarse quieto
-                self.pasos_sin_mover += 1
-                return
-            
-            # si hay semaforo rojo, recalcular y quedarse quieto
-            if hay_semaforo_rojo:
-                self.camino = AStar.buscar_camino(self.cell, [self.destino], self.model, self.destino)
                 self.pasos_sin_mover += 1
                 return
             
