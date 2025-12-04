@@ -308,7 +308,12 @@ class Car(CellAgent): #clase para el agente carro
             self.cell = next_cell
             self.camino.pop(0)
             self.pasos_sin_mover = 0
-            
+    
+    def remove(self):
+        """Override remove para decrementar contador al eliminar"""
+        self.model.carros_activos -= 1
+        super().remove()
+                
 class Traffic_Light(FixedAgent): #clase de semaforo
     """
     Traffic light. Where the traffic lights are in the grid.
