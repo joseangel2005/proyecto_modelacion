@@ -82,7 +82,7 @@ class CityModel(Model):
         """Advance the model by one step."""
         
         # Crear 4 nuevos agentes cada step
-        if self.steps % 1 == 0 and self.steps > 0:
+        if self.steps % 10 == 0 and self.steps > 0:
             for i in range(4):
                 cell = self.esquinas[i % 4]
                 agent = Car(self, cell)
