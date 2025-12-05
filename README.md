@@ -6,6 +6,10 @@ En el desarrollo de este proyecto se realizara una grafica gráfica en 3D de tr�
   . Rebeca Dávila Araiza
   . Jose Angel De La Cruz Alonso
 
+  [Video de la simulacion](https://drive.google.com/file/d/18-djgsqUN-M9Oj3pxzoy3xDycT-NyNnz/view?usp=sharing)
+
+  (El video se ve cortado al ejecutar el programa mientras grababa, pero los carros se mueven de forma fluida en la simulacion al ejecutarla)
+
 ## Instalación del proyecto
 #### 1. Clonar el repositorio
    ```
